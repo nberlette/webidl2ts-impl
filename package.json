@@ -1,8 +1,10 @@
 {
   "name": "webidl2js",
   "version": "20.0.0",
-  "description": "Auto-generates class structures for WebIDL specifications",
-  "main": "lib/transformer.js",
+  "description": "Auto-generates runtime WebIDL wrappers as modern TypeScript modules",
+  "type": "module",
+  "main": "./lib/transformer.ts",
+  "exports": "./lib/transformer.ts",
   "files": [
     "lib/"
   ],
@@ -16,18 +18,19 @@
     "webidl2": "^24.5.0"
   },
   "devDependencies": {
-    "@domenic/eslint-config": "^5.1.0",
-    "@stylistic/eslint-plugin": "^5.10.0",
-    "eslint": "^10.2.0",
-    "globals": "^17.5.0"
+    "@types/node": "^25.6.0",
+    "deno": "^2.7.13",
+    "typescript": "^6.0.3"
   },
   "scripts": {
-    "test": "node --test test/*.js",
-    "update-snapshots": "node --test --test-update-snapshots test/*.js",
-    "lint": "eslint"
+    "test": "deno task test",
+    "update-snapshots": "UPDATE_SNAPSHOTS=1 deno task test",
+    "lint": "deno task lint",
+    "fmt": "deno task fmt",
+    "check": "deno task check"
   },
   "engines": {
-    "node": "^22.14.0 || >=24.0.0"
+    "node": ">=20.0.0"
   },
   "author": "Sebastian Mayr <npm@smayr.name>",
   "license": "MIT"

@@ -1,9 +1,8 @@
-"use strict";
+// @ts-nocheck
+import * as conversions from "webidl-conversions";
 
-const conversions = require("webidl-conversions");
-
-const utils = require("../utils");
-const Types = require("../types");
+import utils from "../utils.ts";
+import Types from "../types.ts";
 
 class Attribute {
   constructor(ctx, I, idl) {
@@ -191,4 +190,4 @@ class Attribute {
   }
 }
 
-module.exports = Attribute;
+export default Attribute;

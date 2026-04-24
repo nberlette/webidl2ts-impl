@@ -1,6 +1,5 @@
-"use strict";
-
-const { areDistinguishable, sameType } = require("./types");
+// @ts-nocheck
+import { areDistinguishable, sameType } from "./types.ts";
 
 function getOperations(type, A, I) {
   switch (type) {
@@ -14,9 +13,9 @@ function getOperations(type, A, I) {
   }
   throw new RangeError(`${type}s are not yet supported`);
 }
-module.exports.getOperations = getOperations;
+export { getOperations };
 
-module.exports.getEffectiveOverloads = function (type, A, N, I) {
+export function getEffectiveOverloads(type, A, N, I) {
   const S = [];
   const F = getOperations(type, A, I);
   let maxArgs = 0;
@@ -83,7 +82,7 @@ module.exports.getEffectiveOverloads = function (type, A, N, I) {
   return S;
 };
 
-module.exports.distinguishingArgumentIndex = function (ctx, S) {
+export function distinguishingArgumentIndex(ctx, S) {
   for (let i = 0; i < S[0].typeList.length; i++) {
     let distinguishable = true;
     for (let j = 0; j < S.length - 1; j++) {
@@ -107,4 +106,10 @@ module.exports.distinguishingArgumentIndex = function (ctx, S) {
   }
 
   return -1;
+};
+
+export default {
+  getOperations,
+  getEffectiveOverloads,
+  distinguishingArgumentIndex
 };

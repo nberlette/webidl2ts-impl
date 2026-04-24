@@ -1,5 +1,4 @@
-"use strict";
-
+// @ts-nocheck
 class Enumeration {
   constructor(ctx, idl) {
     this.ctx = ctx;
@@ -35,4 +34,4 @@ class Enumeration {
   }
 }
 
-module.exports = Enumeration;
+export default Enumeration;

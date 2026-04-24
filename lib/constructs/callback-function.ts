@@ -1,9 +1,8 @@
-"use strict";
+// @ts-nocheck
+import * as conversions from "webidl-conversions";
 
-const conversions = require("webidl-conversions");
-
-const utils = require("../utils.js");
-const Types = require("../types.js");
+import utils from "../utils.ts";
+import Types from "../types.ts";
 
 class CallbackFunction {
   constructor(ctx, idl) {
@@ -201,4 +200,4 @@ class CallbackFunction {
 
 CallbackFunction.prototype.type = "callback";
 
-module.exports = CallbackFunction;
+export default CallbackFunction;

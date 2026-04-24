@@ -1,7 +1,5 @@
-"use strict";
-
-
-module.exports = new Set([
+// @ts-nocheck
+const keywords = new Set([
   "break",
   "case",
   "class",
@@ -36,18 +34,17 @@ module.exports = new Set([
   "while",
   "with",
   "yield",
-
   "enum",
   "await",
-
   "package",
   "protected",
   "static",
   "interface",
   "private",
   "public",
-
   "null",
   "true",
   "false"
 ]);
+
+export default keywords;

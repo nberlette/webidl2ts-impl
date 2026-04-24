@@ -1,14 +1,13 @@
-"use strict";
-
-const utils = require("../utils");
-const Attribute = require("./attribute");
-const Constant = require("./constant");
-const Iterable = require("./iterable");
-const AsyncIterable = require("./async-iterable");
-const Operation = require("./operation");
-const Types = require("../types");
-const Overloads = require("../overloads");
-const Parameters = require("../parameters");
+// @ts-nocheck
+import utils from "../utils.ts";
+import Attribute from "./attribute.ts";
+import Constant from "./constant.ts";
+import Iterable from "./iterable.ts";
+import AsyncIterable from "./async-iterable.ts";
+import Operation from "./operation.ts";
+import Types from "../types.ts";
+import Overloads from "../overloads.ts";
+import Parameters from "../parameters.ts";
 
 function isNamed(idl) {
   return idl.arguments[0].idlType.idlType === "DOMString";
@@ -1689,4 +1688,4 @@ class Interface {
 
 Interface.prototype.type = "interface";
 
-module.exports = Interface;
+export default Interface;

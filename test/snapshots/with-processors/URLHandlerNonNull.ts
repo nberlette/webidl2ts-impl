@@ -1,3 +1,34 @@
-import type { URL } from "./URL.js";
+// @ts-nocheck
+import * as conversions from "webidl-conversions";
+import * as utils from "./utils.ts";
+export const convert = (globalObject, value, { context = "The provided value" } = {}) => {
+  function invokeTheCallbackFunction(url) {
+    const thisArg = utils.tryWrapperForImpl(this);
+    let callResult;
 
-export type URLHandlerNonNull = (url: URL) => unknown;
+    if (typeof value === "function") {
+      url = utils.tryWrapperForImpl(url);
+
+      callResult = Reflect.apply(value, thisArg, [url]);
+    }
+
+    callResult = conversions["any"](callResult, { context: context, globals: globalObject });
+
+    return callResult;
+  }
+
+  invokeTheCallbackFunction.construct = url => {
+    url = utils.tryWrapperForImpl(url);
+
+    let callResult = Reflect.construct(value, [url]);
+
+    callResult = conversions["any"](callResult, { context: context, globals: globalObject });
+
+    return callResult;
+  };
+
+  invokeTheCallbackFunction[utils.wrapperSymbol] = value;
+  invokeTheCallbackFunction.objectReference = value;
+
+  return invokeTheCallbackFunction;
+};

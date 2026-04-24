@@ -1,6 +1,5 @@
-"use strict";
-
-const utils = require("../utils");
+// @ts-nocheck
+import utils from "../utils.ts";
 
 class Iterable {
   constructor(ctx, I, idl) {
@@ -72,4 +71,4 @@ class Iterable {
   }
 }
 
-module.exports = Iterable;
+export default Iterable;

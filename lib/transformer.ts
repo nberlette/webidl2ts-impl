@@ -1,21 +1,108 @@
-"use strict";
+// @ts-nocheck
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
-const path = require("path");
+import { format } from "oxfmt";
+import * as webidl from "webidl2";
 
-const fs = require("fs/promises");
-const webidl = require("webidl2");
-const { format } = require("oxfmt");
+import CallbackFunction from "./constructs/callback-function.ts";
+import CallbackInterface from "./constructs/callback-interface.ts";
+import Dictionary from "./constructs/dictionary.ts";
+import Enumeration from "./constructs/enumeration.ts";
+import Interface from "./constructs/interface.ts";
+import InterfaceMixin from "./constructs/interface-mixin.ts";
+import Typedef from "./constructs/typedef.ts";
+import Context from "./context.ts";
 
-const Context = require("./context");
-const Typedef = require("./constructs/typedef");
-const Interface = require("./constructs/interface");
-const InterfaceMixin = require("./constructs/interface-mixin");
-const CallbackInterface = require("./constructs/callback-interface.js");
-const CallbackFunction = require("./constructs/callback-function");
-const Dictionary = require("./constructs/dictionary");
-const Enumeration = require("./constructs/enumeration");
+const outputUtilsUrls = [
+  new URL("./output/utils.ts", import.meta.url),
+  new URL("./output/utils.js", import.meta.url)
+];
 
-class Transformer {
+function withLeadingDot(specifier) {
+  return specifier.startsWith(".") ? specifier : `./${specifier}`;
+}
+
+function ensureTsExtension(specifier) {
+  if (!specifier.startsWith(".")) {
+    return specifier;
+  }
+  if (specifier.endsWith(".ts")) {
+    return specifier;
+  }
+  if (specifier.endsWith(".js")) {
+    return `${specifier.slice(0, -3)}.ts`;
+  }
+  return `${specifier}.ts`;
+}
+
+function convertRequireLine(_, bindings, rawSpecifier, propertyAccess = "") {
+  const specifier = ensureTsExtension(rawSpecifier);
+  if (bindings.startsWith("{")) {
+    return `import ${bindings} from ${JSON.stringify(specifier)};`;
+  }
+  if (propertyAccess) {
+    const imported = propertyAccess.slice(1);
+    return `import { ${imported} as ${bindings} } from ${JSON.stringify(specifier)};`;
+  }
+  return `import * as ${bindings} from ${JSON.stringify(specifier)};`;
+}
+
+function transformCommonJsToTypeScript(source) {
+  let transformed = source.replace(/^[ \t]*"use strict";\s*/m, "").trim();
+  const aliasedExports = [];
+
+  transformed = transformed.replace(
+    /^\s*const\s+(\{[^}]+\}|[A-Za-z_$][\w$]*)\s*=\s*require\((['"])(.+?)\2\)(\.[A-Za-z_$][\w$]*)?;\s*$/gm,
+    (_, bindings, _quote, specifier, propertyAccess = "") => convertRequireLine(_, bindings, specifier, propertyAccess)
+  );
+
+  transformed = transformed.replace(/module\.exports\s*=\s*exports\s*=\s*/g, "export default ");
+  transformed = transformed.replace(/module\.exports\s*=\s*/g, "export default ");
+  transformed = transformed.replace(/exports\.([A-Za-z_$][\w$]*)\s*=\s*/g, (_, exportName) => {
+    if (exportName === "new") {
+      aliasedExports.push("new");
+      return "const webidl2jsNew = ";
+    }
+    return `export const ${exportName} = `;
+  });
+  transformed = transformed.replace(/\bexports\.([A-Za-z_$][\w$]*)/g, "$1");
+
+  if (aliasedExports.includes("new")) {
+    transformed += "\nexport { webidl2jsNew as new };\n";
+  }
+
+  return `// @ts-nocheck\n${transformed}\n`;
+}
+
+function createStubImplementationSource() {
+  return `
+    const Impl = {
+      implementation: class {
+        constructor(constructorArgs, privateData = {}) {
+          void constructorArgs;
+          Object.assign(this, privateData);
+        }
+      }
+    };
+  `;
+}
+
+async function readOutputUtilsModule() {
+  for (const url of outputUtilsUrls) {
+    try {
+      return await fs.readFile(url, { encoding: "utf-8" });
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error("Unable to locate output/utils module");
+}
+
+export default class Transformer {
   constructor(opts = {}) {
     this.ctx = new Context({
       implSuffix: opts.implSuffix,
@@ -27,27 +114,28 @@ class Transformer {
       }
     });
 
-    this.sources = []; // Absolute paths to the IDL and Impl directories.
+    this.sources = [];
     this.utilPath = null;
   }
 
-  addSource(idl, impl) {
+  addSource(idl, impl = null) {
     if (typeof idl !== "string") {
       throw new TypeError("idl path has to be a string");
     }
-    if (typeof impl !== "string") {
+    if (impl !== null && impl !== undefined && typeof impl !== "string") {
       throw new TypeError("impl path has to be a string");
     }
-    this.sources.push({ idlPath: path.resolve(idl), impl: path.resolve(impl) });
+    this.sources.push({
+      idlPath: path.resolve(idl),
+      impl: impl === null || impl === undefined ? null : path.resolve(impl)
+    });
     return this;
   }
 
   async _collectSources() {
     const stats = await Promise.all(this.sources.map(src => fs.stat(src.idlPath)));
     const dirContents = await Promise.all(
-      stats.map((stat, i) => {
-        return stat.isDirectory() ? fs.readdir(this.sources[i].idlPath) : null;
-      })
+      stats.map((stat, i) => (stat.isDirectory() ? fs.readdir(this.sources[i].idlPath) : null))
     );
 
     const files = [];
@@ -72,15 +160,11 @@ class Transformer {
   }
 
   async _readFiles(files) {
-    const zipped = [];
-    const fileContents = await Promise.all(files.map(f => fs.readFile(f.idlPath, { encoding: "utf-8" })));
-    for (let i = 0; i < files.length; ++i) {
-      zipped.push({
-        idlContent: fileContents[i],
-        impl: files[i].impl
-      });
-    }
-    return zipped;
+    const fileContents = await Promise.all(files.map(file => fs.readFile(file.idlPath, { encoding: "utf-8" })));
+    return files.map((file, index) => ({
+      idlContent: fileContents[index],
+      impl: file.impl
+    }));
   }
 
   _parse(outputDir, contents) {
@@ -100,7 +184,6 @@ class Transformer {
       typedefs
     } = this.ctx;
 
-    // first we're gathering all full interfaces and ignore partial ones
     for (const file of parsed) {
       for (const instruction of file.idl) {
         let obj;
@@ -109,17 +192,13 @@ class Transformer {
             if (instruction.partial) {
               break;
             }
-
-            obj = new Interface(this.ctx, instruction, {
-              implDir: file.impl
-            });
+            obj = new Interface(this.ctx, instruction, { implDir: file.impl });
             interfaces.set(obj.name, obj);
             break;
           case "interface mixin":
             if (instruction.partial) {
               break;
             }
-
             obj = new InterfaceMixin(this.ctx, instruction);
             interfaceMixins.set(obj.name, obj);
             break;
@@ -132,12 +211,11 @@ class Transformer {
             callbackFunctions.set(obj.name, obj);
             break;
           case "includes":
-            break; // handled later
+            break;
           case "dictionary":
             if (instruction.partial) {
               break;
             }
-
             obj = new Dictionary(this.ctx, instruction);
             dictionaries.set(obj.name, obj);
             break;
@@ -157,16 +235,15 @@ class Transformer {
       }
     }
 
-    // second we add all partial members and handle includes
     for (const file of parsed) {
       for (const instruction of file.idl) {
-        let oldMembers, extAttrs;
+        let oldMembers;
+        let extAttrs;
         switch (instruction.type) {
           case "interface":
             if (!instruction.partial) {
               break;
             }
-
             if (this.ctx.options.suppressErrors && !interfaces.has(instruction.name)) {
               break;
             }
@@ -179,7 +256,6 @@ class Transformer {
             if (!instruction.partial) {
               break;
             }
-
             if (this.ctx.options.suppressErrors && !interfaceMixins.has(instruction.name)) {
               break;
             }
@@ -212,69 +288,72 @@ class Transformer {
   }
 
   async _writeFiles(outputDir) {
-    const utilsText = await fs.readFile(path.resolve(__dirname, "output/utils.js"));
+    const utilsText = await readOutputUtilsModule();
     await fs.writeFile(this.utilPath, utilsText);
 
     const { interfaces, callbackInterfaces, callbackFunctions, dictionaries, enumerations } = this.ctx;
 
     let relativeUtils = path.relative(outputDir, this.utilPath).replaceAll("\\", "/");
-    if (relativeUtils[0] !== ".") {
-      relativeUtils = `./${relativeUtils}`;
-    }
+    relativeUtils = ensureTsExtension(withLeadingDot(relativeUtils));
 
-    await Promise.all(interfaces.values().map(async obj => {
-      let source = obj.toString();
+    await Promise.all(
+      [...interfaces.values()].map(async obj => {
+        let source = obj.toString();
+        let implSource = createStubImplementationSource();
 
-      let implFile = path.relative(outputDir, path.resolve(obj.opts.implDir, obj.name + this.ctx.implSuffix));
-      implFile = implFile.replaceAll("\\", "/"); // fix windows file paths
-      if (implFile[0] !== ".") {
-        implFile = `./${implFile}`;
-      }
+        if (obj.opts.implDir) {
+          const absoluteImplPath = path.resolve(obj.opts.implDir, obj.name + this.ctx.implSuffix);
+          try {
+            await fs.access(`${absoluteImplPath}.ts`);
+            let implFile = path.relative(outputDir, absoluteImplPath).replaceAll("\\", "/");
+            implFile = ensureTsExtension(withLeadingDot(implFile));
+            implSource = `const Impl = require(${JSON.stringify(implFile)});`;
+          } catch (error) {
+            if (!error || error.code !== "ENOENT") {
+              throw error;
+            }
+          }
+        }
 
-      source = `
-        "use strict";
+        source = `
+          const conversions = require("webidl-conversions");
+          const utils = require(${JSON.stringify(relativeUtils)});
+          ${source}
+          ${implSource}
+        `;
 
-        const conversions = require("webidl-conversions");
-        const utils = require("${relativeUtils}");
-        ${source}
-        const Impl = require("${implFile}.js");
-      `;
-
-      source = await this._prettify(source);
-
-      await fs.writeFile(path.join(outputDir, `${obj.name}.js`), source);
-    }));
+        source = transformCommonJsToTypeScript(source);
+        source = await this._prettify(source);
+        await fs.writeFile(path.join(outputDir, `${obj.name}.ts`), source);
+      })
+    );
 
     await Promise.all(
       [...callbackInterfaces.values(), ...callbackFunctions.values(), ...dictionaries.values()].map(async obj => {
         let source = obj.toString();
-
         source = `
-          "use strict";
-
           const conversions = require("webidl-conversions");
-          const utils = require("${relativeUtils}");
+          const utils = require(${JSON.stringify(relativeUtils)});
           ${source}
         `;
 
+        source = transformCommonJsToTypeScript(source);
         source = await this._prettify(source);
-
-        await fs.writeFile(path.join(outputDir, `${obj.name}.js`), source);
+        await fs.writeFile(path.join(outputDir, `${obj.name}.ts`), source);
       })
     );
 
-    await Promise.all(enumerations.values().map(async obj => {
-      const source = await this._prettify(`
-        "use strict";
-
-        ${obj.toString()}
-      `);
-      await fs.writeFile(path.join(outputDir, `${obj.name}.js`), source);
-    }));
+    await Promise.all(
+      [...enumerations.values()].map(async obj => {
+        let source = transformCommonJsToTypeScript(obj.toString());
+        source = await this._prettify(source);
+        await fs.writeFile(path.join(outputDir, `${obj.name}.ts`), source);
+      })
+    );
   }
 
   async _prettify(source) {
-    const { code } = await format("output.js", source, {
+    const { code } = await format("output.ts", source, {
       printWidth: 120,
       trailingComma: "none",
       arrowParens: "avoid"
@@ -283,8 +362,10 @@ class Transformer {
   }
 
   async generate(outputDir) {
+    await fs.mkdir(outputDir, { recursive: true });
+
     if (!this.utilPath) {
-      this.utilPath = path.join(outputDir, "utils.js");
+      this.utilPath = path.join(outputDir, "utils.ts");
     }
 
     const sources = await this._collectSources();
@@ -293,5 +374,3 @@ class Transformer {
     await this._writeFiles(outputDir);
   }
 }
-
-module.exports = Transformer;

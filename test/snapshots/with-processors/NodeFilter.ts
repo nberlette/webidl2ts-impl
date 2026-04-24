@@ -1,21 +1,73 @@
-import type { Node } from "./globals.js";
+// @ts-nocheck
+import * as conversions from "webidl-conversions";
+import * as utils from "./utils.ts";
+export const convert = (globalObject, value, { context = "The provided value" } = {}) => {
+  if (!utils.isObject(value)) {
+    throw new globalObject.TypeError(`${context} is not an object.`);
+  }
 
-export interface NodeFilter {
-  readonly FILTER_ACCEPT: 1;
-  readonly FILTER_REJECT: 2;
-  readonly FILTER_SKIP: 3;
-  readonly SHOW_ALL: 0xffffffff;
-  readonly SHOW_ELEMENT: 0x1;
-  readonly SHOW_ATTRIBUTE: 0x2;
-  readonly SHOW_TEXT: 0x4;
-  readonly SHOW_CDATA_SECTION: 0x8;
-  readonly SHOW_ENTITY_REFERENCE: 0x10;
-  readonly SHOW_ENTITY: 0x20;
-  readonly SHOW_PROCESSING_INSTRUCTION: 0x40;
-  readonly SHOW_COMMENT: 0x80;
-  readonly SHOW_DOCUMENT: 0x100;
-  readonly SHOW_DOCUMENT_TYPE: 0x200;
-  readonly SHOW_DOCUMENT_FRAGMENT: 0x400;
-  readonly SHOW_NOTATION: 0x800;
-  acceptNode(node: Node): number;
-}
+  function callTheUserObjectsOperation(node) {
+    let thisArg = utils.tryWrapperForImpl(this);
+    let O = value;
+    let X = O;
+
+    if (typeof O !== "function") {
+      X = O["acceptNode"];
+      if (typeof X !== "function") {
+        throw new globalObject.TypeError(`${context} does not correctly implement NodeFilter.`);
+      }
+      thisArg = O;
+    }
+
+    node = utils.tryWrapperForImpl(node);
+
+    let callResult = Reflect.apply(X, thisArg, [node]);
+
+    callResult = conversions["unsigned short"](callResult, { context: context, globals: globalObject });
+
+    return callResult;
+  }
+
+  callTheUserObjectsOperation[utils.wrapperSymbol] = value;
+  callTheUserObjectsOperation.objectReference = value;
+
+  return callTheUserObjectsOperation;
+};
+
+const exposed = new Set(["Window"]);
+
+export const install = (globalObject, globalNames) => {
+  if (!globalNames.some(globalName => exposed.has(globalName))) {
+    return;
+  }
+
+  const ctorRegistry = utils.initCtorRegistry(globalObject);
+  const NodeFilter = () => {
+    throw new globalObject.TypeError("Illegal invocation");
+  };
+
+  Object.defineProperties(NodeFilter, {
+    FILTER_ACCEPT: { value: 1, enumerable: true },
+    FILTER_REJECT: { value: 2, enumerable: true },
+    FILTER_SKIP: { value: 3, enumerable: true },
+    SHOW_ALL: { value: 0xffffffff, enumerable: true },
+    SHOW_ELEMENT: { value: 0x1, enumerable: true },
+    SHOW_ATTRIBUTE: { value: 0x2, enumerable: true },
+    SHOW_TEXT: { value: 0x4, enumerable: true },
+    SHOW_CDATA_SECTION: { value: 0x8, enumerable: true },
+    SHOW_ENTITY_REFERENCE: { value: 0x10, enumerable: true },
+    SHOW_ENTITY: { value: 0x20, enumerable: true },
+    SHOW_PROCESSING_INSTRUCTION: { value: 0x40, enumerable: true },
+    SHOW_COMMENT: { value: 0x80, enumerable: true },
+    SHOW_DOCUMENT: { value: 0x100, enumerable: true },
+    SHOW_DOCUMENT_TYPE: { value: 0x200, enumerable: true },
+    SHOW_DOCUMENT_FRAGMENT: { value: 0x400, enumerable: true },
+    SHOW_NOTATION: { value: 0x800, enumerable: true }
+  });
+
+  Object.defineProperty(globalObject, "NodeFilter", {
+    configurable: true,
+    writable: true,
+    value: NodeFilter
+  });
+};

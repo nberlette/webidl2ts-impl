@@ -1,6 +1,5 @@
-"use strict";
-
-const Types = require("../types");
+// @ts-nocheck
+import Types from "../types.ts";
 
 class Typedef {
   constructor(ctx, idl) {
@@ -26,4 +25,4 @@ class Typedef {
   }
 }
 
-module.exports = Typedef;
+export default Typedef;

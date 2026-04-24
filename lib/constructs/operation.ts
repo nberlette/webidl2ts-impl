@@ -1,10 +1,9 @@
-"use strict";
+// @ts-nocheck
+import * as conversions from "webidl-conversions";
 
-const conversions = require("webidl-conversions");
-
-const utils = require("../utils");
-const Overloads = require("../overloads");
-const Parameters = require("../parameters");
+import utils from "../utils.ts";
+import Overloads from "../overloads.ts";
+import Parameters from "../parameters.ts";
 
 class Operation {
   constructor(ctx, I, idl) {
@@ -182,4 +181,4 @@ class Operation {
   }
 }
 
-module.exports = Operation;
+export default Operation;

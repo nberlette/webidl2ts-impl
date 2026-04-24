@@ -1,8 +1,7 @@
-"use strict";
+// @ts-nocheck
+import * as conversions from "webidl-conversions";
 
-const conversions = require("webidl-conversions");
-
-const utils = require("./utils");
+import utils from "./utils.ts";
 
 const typedArrayTypes = new Set([
   "Int8Array",
@@ -852,11 +851,22 @@ function areDistinguishable(ctx, type1, type2) {
   return inner(resolved1, resolved2) && inner(resolved2, resolved1);
 }
 
-module.exports = {
+export {
   arrayBufferViewTypes,
   stringTypes,
   numericTypes,
+  generateTypeConversion,
+  resolveType,
+  includesNullableType,
+  includesDictionaryType,
+  areDistinguishable,
+  sameType
+};
 
+export default {
+  arrayBufferViewTypes,
+  stringTypes,
+  numericTypes,
   generateTypeConversion,
   resolveType,
   includesNullableType,

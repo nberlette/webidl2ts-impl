@@ -1,5 +1,4 @@
-"use strict";
-
+// @ts-nocheck
 // Returns "Type(value) is Object" in ES terminology.
 function isObject(value) {
   return (typeof value === "object" && value !== null) || typeof value === "function";
@@ -312,7 +311,45 @@ const asyncIteratorReturn = Symbol("async iterator return steps");
 const asyncIteratorInit = Symbol("async iterator initialization steps");
 const asyncIteratorEOI = Symbol("async iterator end of iteration");
 
-module.exports = exports = {
+export {
+  isObject,
+  define,
+  newObjectInRealm,
+  wrapperSymbol,
+  implSymbol,
+  getSameObject,
+  ctorRegistrySymbol,
+  initCtorRegistry,
+  wrapperForImpl,
+  implForWrapper,
+  tryWrapperForImpl,
+  tryImplForWrapper,
+  iterInternalSymbol,
+  isArrayBuffer,
+  isSharedArrayBuffer,
+  isArrayIndexPropName,
+  getMethod,
+  convertAsyncSequence,
+  supportsPropertyIndex,
+  supportedPropertyIndices,
+  supportsPropertyName,
+  supportedPropertyNames,
+  indexedGet,
+  indexedSetNew,
+  indexedSetExisting,
+  namedGet,
+  namedSetNew,
+  namedSetExisting,
+  namedDelete,
+  asyncIteratorNext,
+  asyncIteratorReturn,
+  asyncIteratorInit,
+  asyncIteratorEOI,
+  iteratorResult,
+  ordinarySetWithOwnDescriptor
+};
+
+export default {
   isObject,
   define,
   newObjectInRealm,

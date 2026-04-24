@@ -1,0 +1,26 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "test": "deno test --allow-env --allow-read --allow-run --allow-write test/test.ts test/utils.test.ts",
+    "lint": "deno lint",
+    "fmt": "deno fmt",
+    "check": "deno check lib/transformer.ts test/test.ts test/utils.test.ts"
+  },
+  "lint": {
+    "exclude": [
+      "test/cases",
+      "test/output",
+      "test/snapshots"
+    ]
+  },
+  "fmt": {
+    "exclude": [
+      "test/cases",
+      "test/output",
+      "test/snapshots"
+    ]
+  },
+  "compilerOptions": {
+    "strict": false
+  }
+}

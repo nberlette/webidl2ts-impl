@@ -1,7 +1,7 @@
-"use strict";
-const webidl = require("webidl2");
-const CallbackFunction = require("./constructs/callback-function.js");
-const Typedef = require("./constructs/typedef");
+// @ts-nocheck
+import * as webidl from "webidl2";
+import CallbackFunction from "./constructs/callback-function.ts";
+import Typedef from "./constructs/typedef.ts";
 
 const builtinTypes = webidl.parse(`
   typedef (Int8Array or Int16Array or Int32Array or
@@ -108,4 +108,4 @@ class Context {
   }
 }
 
-module.exports = Context;
+export default Context;

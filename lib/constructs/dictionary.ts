@@ -1,7 +1,6 @@
-"use strict";
-
-const Types = require("../types");
-const utils = require("../utils");
+// @ts-nocheck
+import Types from "../types.ts";
+import utils from "../utils.ts";
 
 class Dictionary {
   constructor(ctx, idl) {
@@ -123,4 +122,4 @@ class Dictionary {
 
 Dictionary.prototype.type = "dictionary";
 
-module.exports = Dictionary;
+export default Dictionary;

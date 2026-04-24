@@ -1,7 +1,6 @@
-"use strict";
-
-const utils = require("../utils");
-const { generateAsyncIteratorArgConversions } = require("../parameters");
+// @ts-nocheck
+import utils from "../utils.ts";
+import { generateAsyncIteratorArgConversions } from "../parameters.ts";
 
 class AsyncIterable {
   constructor(ctx, I, idl) {
@@ -71,4 +70,4 @@ class AsyncIterable {
   }
 }
 
-module.exports = AsyncIterable;
+export default AsyncIterable;

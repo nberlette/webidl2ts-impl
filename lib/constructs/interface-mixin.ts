@@ -1,5 +1,4 @@
-"use strict";
-
+// @ts-nocheck
 class InterfaceMixin {
   constructor(ctx, idl) {
     this.ctx = ctx;
@@ -10,4 +9,4 @@ class InterfaceMixin {
 
 InterfaceMixin.prototype.type = "interface mixin";
 
-module.exports = InterfaceMixin;
+export default InterfaceMixin;

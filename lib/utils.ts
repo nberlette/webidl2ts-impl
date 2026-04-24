@@ -1,6 +1,6 @@
-"use strict";
-const { extname } = require("path");
-const keywords = require("./keywords.js");
+// @ts-nocheck
+import { extname } from "node:path";
+import keywords from "./keywords.ts";
 
 function getDefault(dflt) {
   switch (dflt.type) {
@@ -118,8 +118,8 @@ class RequiresMap extends Map {
     const key = toKey(name, func);
 
     // If `name` is a package name or has a file extension, then use it as-is,
-    // otherwise append the `.js` file extension:
-    const importPath = PACKAGE_NAME_REGEX.test(name) || extname(name) ? name : `${name}.js`;
+    // otherwise append the `.ts` file extension:
+    const importPath = PACKAGE_NAME_REGEX.test(name) || extname(name) ? name : `${name}.ts`;
     let req = `require(${JSON.stringify(importPath)})`;
 
     if (func) {
@@ -134,7 +134,7 @@ class RequiresMap extends Map {
     const key = toKey(type, func);
 
     const path = type.startsWith(".") ? type : `./${type}`;
-    let req = `require("${path}.js")`;
+    let req = `require("${path}.ts")`;
 
     if (func) {
       req += `.${func}`;
@@ -165,7 +165,21 @@ class RequiresMap extends Map {
   }
 }
 
-module.exports = {
+export {
+  getDefault,
+  getExtAttr,
+  isGlobal,
+  hasCEReactions,
+  isOnInstance,
+  stringifyPropertyKey,
+  stringifyPropertyName,
+  getPropertyDescriptorModifier,
+  defaultDefinePropertyDescriptor,
+  formatArgs,
+  RequiresMap
+};
+
+export default {
   getDefault,
   getExtAttr,
   isGlobal,

@@ -1,6 +1,5 @@
-"use strict";
-
-const utils = require("../utils");
+// @ts-nocheck
+import utils from "../utils.ts";
 
 class Constant {
   constructor(ctx, I, idl) {
@@ -24,4 +23,4 @@ class Constant {
   }
 }
 
-module.exports = Constant;
+export default Constant;
