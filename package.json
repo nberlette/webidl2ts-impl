@@ -1,8 +1,10 @@
 {
   "name": "webidl2js",
   "version": "20.0.0",
-  "description": "Auto-generates class structures for WebIDL specifications",
-  "main": "lib/transformer.js",
+  "description": "Generate modern ESM TypeScript declarations from Web IDL specifications",
+  "type": "module",
+  "main": "./lib/transformer.js",
+  "exports": "./lib/transformer.js",
   "files": [
     "lib/"
   ],
@@ -12,18 +14,18 @@
   },
   "dependencies": {
     "oxfmt": "^0.45.0",
-    "webidl-conversions": "^8.0.1",
     "webidl2": "^24.5.0"
   },
   "devDependencies": {
     "@domenic/eslint-config": "^5.1.0",
     "@stylistic/eslint-plugin": "^5.10.0",
     "eslint": "^10.2.0",
-    "globals": "^17.5.0"
+    "globals": "^17.5.0",
+    "typescript": "^6.0.3"
   },
   "scripts": {
     "test": "node --test test/*.js",
-    "update-snapshots": "node --test --test-update-snapshots test/*.js",
+    "update-snapshots": "UPDATE_SNAPSHOTS=1 node --test test/*.js",
     "lint": "eslint"
   },
   "engines": {
