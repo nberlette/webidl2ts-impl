@@ -1,9 +1,9 @@
-import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { before, describe, test } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 import Transformer from "../lib/transformer.js";
 
@@ -15,7 +15,12 @@ const casesDir = path.resolve(__dirname, "cases");
 const implsDir = path.resolve(__dirname, "implementations");
 const outputDir = path.resolve(__dirname, "output");
 const snapshotsDir = path.resolve(__dirname, "snapshots");
-const tscPath = path.resolve(rootDir, "node_modules", ".bin", process.platform === "win32" ? "tsc.cmd" : "tsc");
+const tscPath = path.resolve(
+  rootDir,
+  "node_modules",
+  ".bin",
+  process.platform === "win32" ? "tsc.cmd" : "tsc"
+);
 
 async function resetOutput() {
   await fs.rm(outputDir, { force: true, recursive: true });
@@ -24,24 +29,23 @@ async function resetOutput() {
 
 async function readTsDirectory(dirPath) {
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  const fileMap = new Map();
-  for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".ts")) {
-      continue;
-    }
-    const filePath = path.join(dirPath, entry.name);
-    fileMap.set(entry.name, await fs.readFile(filePath, "utf8"));
-  }
-  return fileMap;
+  const tsEntries = entries.filter(entry => entry.isFile() && entry.name.endsWith(".ts"));
+  const contents = await Promise.all(
+    tsEntries.map(async entry => [entry.name, await fs.readFile(path.join(dirPath, entry.name), "utf8")])
+  );
+  return new Map(contents);
 }
 
 async function syncSnapshot(outputPath, snapshotPath) {
   await fs.rm(snapshotPath, { force: true, recursive: true });
   await fs.mkdir(snapshotPath, { recursive: true });
 
-  for (const [fileName, contents] of await readTsDirectory(outputPath)) {
-    await fs.writeFile(path.join(snapshotPath, fileName), contents, "utf8");
-  }
+  const outputFiles = await readTsDirectory(outputPath);
+  await Promise.all(
+    [...outputFiles].map(([fileName, contents]) => {
+      return fs.writeFile(path.join(snapshotPath, fileName), contents, "utf8");
+    })
+  );
 }
 
 async function assertDirectorySnapshot(outputPath, snapshotPath) {
