@@ -4,12 +4,15 @@ import stylisticConfig from "@domenic/eslint-config/stylistic";
 
 export default [
   {
-    ignores: ["test/output/", "test/snapshots/"]
+    ignores: [
+      "test/output/",
+      "test/snapshots/"
+    ]
   },
   {
     files: ["**/*.js"],
     languageOptions: {
-      sourceType: "module",
+      sourceType: "commonjs",
       globals: globals.node
     }
   },
@@ -18,8 +21,7 @@ export default [
   {
     rules: {
       "@stylistic/max-len": ["error", { code: 120, ignoreUrls: true, ignoreTemplateLiterals: true }],
-      "require-unicode-regexp": "off",
-      "sort-imports": "off"
+      "require-unicode-regexp": "off"
     }
   }
 ];

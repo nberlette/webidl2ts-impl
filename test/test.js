@@ -1,131 +1,134 @@
-import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { before, describe, test } from "node:test";
-import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import path from "node:path";
+"use strict";
 
-import Transformer from "../lib/transformer.js";
+const { describe, test, before, snapshot } = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("fs");
+const path = require("path");
 
-const updateSnapshots = process.env.UPDATE_SNAPSHOTS === "1";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+snapshot.setDefaultSnapshotSerializers([value => value]);
+const Transformer = require("..");
+const reflector = require("./reflector");
+
 const rootDir = path.resolve(__dirname, "..");
 const casesDir = path.resolve(__dirname, "cases");
 const implsDir = path.resolve(__dirname, "implementations");
 const outputDir = path.resolve(__dirname, "output");
 const snapshotsDir = path.resolve(__dirname, "snapshots");
-const tscPath = path.resolve(
-  rootDir,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "tsc.cmd" : "tsc"
-);
 
-async function resetOutput() {
-  await fs.rm(outputDir, { force: true, recursive: true });
-  await fs.mkdir(outputDir, { recursive: true });
-}
-
-async function readTsDirectory(dirPath) {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  const tsEntries = entries.filter(entry => entry.isFile() && entry.name.endsWith(".ts"));
-  const contents = await Promise.all(
-    tsEntries.map(async entry => [entry.name, await fs.readFile(path.join(dirPath, entry.name), "utf8")])
-  );
-  return new Map(contents);
-}
-
-async function syncSnapshot(outputPath, snapshotPath) {
-  await fs.rm(snapshotPath, { force: true, recursive: true });
-  await fs.mkdir(snapshotPath, { recursive: true });
-
-  const outputFiles = await readTsDirectory(outputPath);
-  await Promise.all(
-    [...outputFiles].map(([fileName, contents]) => {
-      return fs.writeFile(path.join(snapshotPath, fileName), contents, "utf8");
-    })
-  );
-}
-
-async function assertDirectorySnapshot(outputPath, snapshotPath) {
-  const outputFiles = await readTsDirectory(outputPath);
-  if (updateSnapshots) {
-    await syncSnapshot(outputPath, snapshotPath);
-    return;
-  }
-
-  const snapshotFiles = await readTsDirectory(snapshotPath);
-  assert.deepStrictEqual([...outputFiles.keys()].sort(), [...snapshotFiles.keys()].sort());
-  for (const [fileName, contents] of outputFiles) {
-    assert.strictEqual(contents, snapshotFiles.get(fileName), fileName);
-  }
-}
-
-async function typecheckGeneratedOutput() {
-  const tsconfigPath = path.resolve(outputDir, "tsconfig.generated.json");
-  const tsconfig = {
-    compilerOptions: {
-      module: "NodeNext",
-      moduleResolution: "NodeNext",
-      noEmit: true,
-      skipLibCheck: true,
-      strict: true,
-      target: "ES2024",
-      verbatimModuleSyntax: true
-    },
-    include: ["./**/*.ts"]
-  };
-  await fs.writeFile(tsconfigPath, `${JSON.stringify(tsconfig, null, 2)}\n`, "utf8");
-  execFileSync(tscPath, ["--project", tsconfigPath], {
-    cwd: outputDir,
-    stdio: "pipe"
-  });
-  await fs.rm(tsconfigPath, { force: true });
-}
-
-before(resetOutput);
+const idlFiles = fs.readdirSync(casesDir);
 
 describe("generation", () => {
   describe("built-in types", () => {
-    test("matches the built-in snapshots", async () => {
-      await resetOutput();
+    before(() => {
       const transformer = new Transformer();
-      await transformer.generate(outputDir);
-      await typecheckGeneratedOutput();
-      await assertDirectorySnapshot(outputDir, path.resolve(snapshotsDir, "built-in-types"));
+      return transformer.generate(outputDir);
+    });
+
+    test("Function", t => {
+      const outputFile = path.resolve(outputDir, "Function.js");
+      const output = fs.readFileSync(outputFile, { encoding: "utf-8" });
+
+      t.assert.fileSnapshot(output, path.resolve(snapshotsDir, "built-in-types", "Function.js"));
+    });
+
+    test("VoidFunction", t => {
+      const outputFile = path.resolve(outputDir, "VoidFunction.js");
+      const output = fs.readFileSync(outputFile, { encoding: "utf-8" });
+
+      t.assert.fileSnapshot(output, path.resolve(snapshotsDir, "built-in-types", "VoidFunction.js"));
     });
   });
 
   describe("without processors", () => {
-    test("matches the case snapshots", async () => {
-      await resetOutput();
+    before(() => {
       const transformer = new Transformer();
       transformer.addSource(casesDir, implsDir);
-      await transformer.generate(outputDir);
-      await typecheckGeneratedOutput();
-      await assertDirectorySnapshot(outputDir, path.resolve(snapshotsDir, "without-processors"));
+
+      return transformer.generate(outputDir);
     });
+
+    for (const idlFile of idlFiles) {
+      test(idlFile, t => {
+        const basename = path.basename(idlFile, ".webidl");
+        const outputFile = path.resolve(outputDir, `${basename}.js`);
+        const output = fs.readFileSync(outputFile, { encoding: "utf-8" });
+
+        t.assert.fileSnapshot(output, path.resolve(snapshotsDir, "without-processors", `${basename}.js`));
+      });
+    }
   });
 
   describe("with processors", () => {
-    test("ignores runtime-only processors and emits the same types", async () => {
-      await resetOutput();
+    before(() => {
       const transformer = new Transformer({
         processCEReactions(code) {
-          return code;
+          const ceReactions = this.addImport("../CEReactions");
+
+          return `
+            ${ceReactions}.preSteps(globalObject);
+            try {
+              ${code}
+            } finally {
+              ${ceReactions}.postSteps(globalObject);
+            }
+          `;
         },
-        processHTMLConstructor(code) {
-          return code;
+        processHTMLConstructor() {
+          const htmlConstructor = this.addImport("../HTMLConstructor", "HTMLConstructor");
+
+          return `
+            return ${htmlConstructor}(globalObject, interfaceName);
+          `;
         },
-        processReflect() {
-          return { get: "", set: "" };
+        processReflect(idl, implObj) {
+          const reflectAttr = idl.extAttrs.find(attr => attr.name === "Reflect");
+          const attrName =
+            (reflectAttr && reflectAttr.rhs && reflectAttr.rhs.value.replace(/_/g, "-")) || idl.name.toLowerCase();
+          if (idl.idlType.idlType === "USVString") {
+            const reflectURL = idl.extAttrs.find(attr => attr.name === "ReflectURL");
+            if (reflectURL) {
+              const whatwgURL = this.addImport("whatwg-url");
+              return {
+                get: `
+                  const value = ${implObj}.getAttributeNS(null, "${attrName}");
+                  if (value === null) {
+                    return "";
+                  }
+                  const urlRecord = ${whatwgURL}.parseURL(value, { baseURL: "http://localhost:8080/" });
+                  return urlRecord === null ? conversions.USVString(value) : ${whatwgURL}.serializeURL(urlRecord);
+                `,
+                set: `
+                  ${implObj}.setAttributeNS(null, "${attrName}", V);
+                `
+              };
+            }
+          }
+          const reflect = reflector[idl.idlType.idlType];
+          return {
+            get: reflect.get(implObj, attrName),
+            set: reflect.set(implObj, attrName)
+          };
         }
       });
       transformer.addSource(casesDir, implsDir);
-      await transformer.generate(outputDir);
-      await typecheckGeneratedOutput();
-      await assertDirectorySnapshot(outputDir, path.resolve(snapshotsDir, "with-processors"));
+
+      return transformer.generate(outputDir);
     });
+
+    for (const idlFile of idlFiles) {
+      test(idlFile, t => {
+        const basename = path.basename(idlFile, ".webidl");
+        const outputFile = path.resolve(outputDir, `${basename}.js`);
+        const output = fs.readFileSync(outputFile, { encoding: "utf-8" });
+
+        t.assert.fileSnapshot(output, path.resolve(snapshotsDir, "with-processors", `${basename}.js`));
+      });
+    }
+  });
+
+  test("utils.js", () => {
+    const input = fs.readFileSync(path.resolve(rootDir, "lib/output/utils.js"), { encoding: "utf-8" });
+    const output = fs.readFileSync(path.resolve(outputDir, "utils.js"), { encoding: "utf-8" });
+    assert.strictEqual(output, input);
   });
 });
